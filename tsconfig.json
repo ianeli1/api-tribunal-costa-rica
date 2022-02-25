@@ -7,6 +7,6 @@
     "sourceMap": true,
     "strict": false,
   },
-  "include": ["GetCedula"],
+  "include": ["**/*"],
   "exclude": ["node_modules", "dist"]
 }
