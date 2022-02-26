@@ -1,63 +1,6 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import * as puppeteer from "puppeteer";
-
-let browser: puppeteer.Browser | undefined = undefined;
-
-interface RawParams {
-  cedula: string;
-  fechaNacimiento: string;
-  nombrecompleto: string;
-  nacionalidad: string;
-  conocidocomo: string;
-  edad: string;
-  nombrepadre: string;
-  LeyendaMarginal: string;
-  id_padre: string;
-  nombremadre: string;
-  id_madre: string;
-  defuncion1?: string;
-  defuncion2: string;
-  defunciontemporal: string;
-  Nota: string;
-}
-
-interface CedulaResponse {
-  cedula: string;
-  nombre: string;
-  cc: string | null;
-  nacionalidad: string;
-  fechaNacimiento: string;
-  edad: number;
-  marginal: string;
-  nota: string;
-  fallecido: boolean;
-  fechaDefuncion: string | null;
-  padre: {
-    nombre: string;
-    cedula: string | null;
-  };
-  madre: {
-    nombre: string;
-    cedula: string | null;
-  };
-}
-
-// {
-//     "cedula": "118030444",
-//     "fechaNacimiento": "09/02/2001",
-//     "nombrecompleto": "IAN ELIZONDO CHAVES",
-//     "nacionalidad": "COSTARRICENSE",
-//     "conocidocomo": " ",
-//     "edad": "21 AÑOS",
-//     "nombrepadre": "BRAYAN ELIZONDO HIDALGO",
-//     "LeyendaMarginal": "NO",
-//     "id_padre": "110850113",
-//     "nombremadre": "LAURA CHAVES GARBANZO",
-//     "id_madre": "110610837",
-//     "defuncion2": "",
-//     "defunciontemporal": "",
-//     "Nota": ""
-//   }
+import { getBrowser } from "../utils/browser";
+import { CedulaResponse, RawParams } from "../utils/types";
 
 const httpTrigger: AzureFunction = async function (
   context: Context,
@@ -80,53 +23,8 @@ const httpTrigger: AzureFunction = async function (
     context.done();
     return;
   }
-  if (!browser) {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--autoplay-policy=user-gesture-required",
-        "--disable-background-networking",
-        "--disable-background-timer-throttling",
-        "--disable-backgrounding-occluded-windows",
-        "--disable-breakpad",
-        "--disable-client-side-phishing-detection",
-        "--disable-component-update",
-        "--disable-default-apps",
-        "--disable-dev-shm-usage",
-        "--disable-domain-reliability",
-        "--disable-extensions",
-        "--disable-features=AudioServiceOutOfProcess",
-        "--disable-hang-monitor",
-        "--disable-ipc-flooding-protection",
-        "--disable-notifications",
-        "--disable-offer-store-unmasked-wallet-cards",
-        "--disable-popup-blocking",
-        "--disable-print-preview",
-        "--disable-prompt-on-repost",
-        "--disable-renderer-backgrounding",
-        "--disable-setuid-sandbox",
-        "--disable-speech-api",
-        "--disable-sync",
-        "--hide-scrollbars",
-        "--ignore-gpu-blacklist",
-        "--metrics-recording-only",
-        "--mute-audio",
-        "--no-default-browser-check",
-        "--no-first-run",
-        "--no-pings",
-        "--no-sandbox",
-        "--no-zygote",
-        "--password-store=basic",
-        "--use-gl=swiftshader",
-        "--use-mock-keychain",
-      ],
-    });
-  }
 
-  const page = await browser.newPage();
+  const page = await (await getBrowser()).newPage();
   await page.setRequestInterception(true);
   page.on("request", (req) => {
     if (["image", "stylesheet", "font"].includes(req.resourceType())) {
@@ -156,11 +54,12 @@ const httpTrigger: AzureFunction = async function (
 
   const data = (await page.$$eval(
     "td > span[id^=lbl]",
+    //@ts-ignore
     (elements: HTMLSpanElement[]) =>
       elements.reduce(
         (acc, cv) => ({
           ...acc,
-          [cv.id.replace("lbl", "")]: cv.textContent,
+          [cv.id.replace("lbl", "")]: cv.textContent ?? "",
         }),
         {} as Record<string, string>
       )
